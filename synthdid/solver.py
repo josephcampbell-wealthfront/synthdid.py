@@ -1,4 +1,4 @@
-import numpy as np, pandas as pd
+import numpy as np
 
 def contract3(X, v):
     
@@ -63,16 +63,6 @@ def sc_weight_fw(A, b, x=None, intercept=True, zeta=1, min_decrease=1e-3, max_it
             vals_iter = vals[nt - 2] - vals[nt - 1] > min_decrease ** 2
     return {"params": x, "vals": vals}
 
-
-def collapsed_form(Y, N0, T0):
-    N, T = Y.shape
-    Y = pd.DataFrame(Y)
-    row_mean = Y.iloc[0:N0, T0:T].mean(axis=1)
-    col_mean = Y.iloc[N0:N, 0:T0].mean(axis=0)
-    overall_mean = Y.iloc[N0:N, T0:T].mean().values[0]
-    result_top = pd.concat([Y.iloc[0:N0, 0:T0], row_mean], axis=1)
-    result_bottom = pd.concat([col_mean.T, pd.Series(overall_mean)], axis=0)
-    return pd.concat([result_top, pd.DataFrame(result_bottom).T], axis=0)
 
 
 def sc_weight_covariates(

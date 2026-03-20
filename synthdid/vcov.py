@@ -12,12 +12,12 @@ def bootstrap_se(data_ref, n_reps = 50):
         sample_id = np.random.choice(uniqueID, replace=True, size=N)
         def sample_concat(_id):
             sample_id_n = sample_id[_id]
-            data_c = data_ref.query("unit in @sample_id_n")
-            data_c = data_c.assign(unit1=str(data_c['unit']) + str(_id))
+            data_c = data_ref[data_ref.unit == sample_id_n].copy()
+            data_c = data_c.assign(unit1=str(sample_id_n) + "_" + str(_id))
             return data_c
         sampled_df = pd.concat([sample_concat(i) for i in range(N)], ignore_index=True)
         if len(np.unique(sampled_df.treatment)) != 2:
-            theta_bt()
+            return theta_bt()
         att_aux = sdid(sampled_df, "unit1", "time", "treatment", "outcome")["att"]
         return att_aux
     t = 0
@@ -39,7 +39,7 @@ def placebo_se(data_ref, n_reps=50):
     
     def theta_pb():
         plabeo_years = pd.DataFrame({
-            "unit": np.random.choice(units_df_co, size=N_tr),
+            "unit": np.random.choice(units_df_co, size=N_tr, replace=False),
             'tyear1': tr_years
         })
         aux_data = df_co.merge(plabeo_years, on="unit", how='outer').sort_values("tyear1")
@@ -48,11 +48,8 @@ def placebo_se(data_ref, n_reps=50):
         )
         aux_data = aux_data.assign(
             treatment=np.where(((aux_data.tyear != 0) & (aux_data.time == aux_data.tyear)), 1, 0)
-        ).groupby("unit", group_keys=False).apply(
-            lambda x: x.assign(
-                treated=x["treatment"].max()
-            )
         ).reset_index(drop=True)
+        aux_data["treated"] = aux_data.groupby("unit")["treatment"].transform("max")
         att = sdid(aux_data, "unit", "time", "treatment", "outcome")
         return att["att"]
     
@@ -122,9 +119,9 @@ class Variance:
     def vcov(self, method="placebo", n_reps=50):
         data_ref = self.data_ref
         if method=="placebo":
-            se = placebo_se(data_ref, n_reps=50)
+            se = placebo_se(data_ref, n_reps=n_reps)
         elif method=="bootstrap":
-            se = bootstrap_se(data_ref, n_reps=50)
+            se = bootstrap_se(data_ref, n_reps=n_reps)
         else:
             time_break, weights = self.ttime, self.weights
             se = jackknife_se(data_ref, time_break, self.att, weights)

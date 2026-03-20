@@ -1,0 +1,566 @@
+% ============================================================
+%  Explicacion_pesos.tex
+%  Explicación detallada: Tablas 7-13 de Comparativa
+%  Pesos hat{omega} y hat{lambda} — Python vs Stata
+% ============================================================
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage[spanish]{babel}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\definecolor{pyblue}{RGB}{31,119,180}
+\definecolor{stgreen}{RGB}{44,160,44}
+\definecolor{headgray}{RGB}{235,235,235}
+\definecolor{highlight}{RGB}{255,250,205}
+\definecolor{sdidcolor}{RGB}{204,229,255}
+\definecolor{sccolor}{RGB}{204,255,204}
+\definecolor{didcolor}{RGB}{255,229,204}
+
+\newcommand{\py}{\textcolor{pyblue}{\textbf{Python}}}
+\newcommand{\st}{\textcolor{stgreen}{\textbf{Stata}}}
+\newcommand{\sdid}{\textsc{sdid}}
+\newcommand{\scc}{\textsc{sc}}
+\newcommand{\did}{\textsc{did}}
+
+\captionsetup{font=small, labelfont=bf}
+\tcbuselibrary{skins, breakable}
+
+% Caja de concepto
+\newtcolorbox{concepto}[1]{
+  colback=blue!5!white, colframe=blue!50!black,
+  fonttitle=\bfseries, title=#1, breakable
+}
+% Caja de interpretación
+\newtcolorbox{interpretacion}{
+  colback=yellow!10!white, colframe=orange!60!black,
+  fonttitle=\bfseries, title=Interpretación, breakable
+}
+% Caja de resultado
+\newtcolorbox{resultado}{
+  colback=green!8!white, colframe=green!50!black,
+  fonttitle=\bfseries, title=Resultado clave, breakable
+}
+
+% ============================================================
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2.5cm}
+  {\LARGE\bfseries Explicación de Pesos\\[0.5em]
+  Tablas 7--13 del Documento Comparativa\\[1em]}
+  {\large Synthetic Difference-in-Differences (SDID)\\
+  vs Synthetic Control (SC) vs Difference-in-Differences (DiD)\\[1.5em]}
+  {\normalsize
+    \textbf{Dataset:} Cigar (Baltagi, 2002) — 46 estados EE.UU., 1963--1992\\[0.3em]
+    \textbf{Outcome:} Ventas de cigarrillos (paquetes per cápita)\\[0.3em]
+    \textbf{Comparación:} \py{} (\texttt{synthdid.py}) vs \st{} (\texttt{sdid})\\[2em]
+  }
+  \vfill
+  {\small Marzo 2026}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Marco Conceptual: ¿Qué son los pesos $\hat{\omega}$ y $\hat{\lambda}$?}
+% ============================================================
+
+El estimador SDID (y sus variantes SC y DiD) construye un \textbf{contrafactual sintético}
+combinando unidades de control y periodos de tiempo mediante dos tipos de pesos:
+
+\begin{concepto}{Pesos de unidades de control $\hat{\omega}_i$ (quién)}
+Determinan \textbf{qué estados de control} contribuyen al contrafactual y en qué proporción.
+Un $\hat{\omega}_i$ alto significa que el estado $i$ es muy parecido al grupo tratado
+en el período pre-tratamiento. Se exige que $\hat{\omega}_i \geq 0$ y $\sum_i \hat{\omega}_i = 1$.
+\end{concepto}
+
+\begin{concepto}{Pesos temporales $\hat{\lambda}_t$ (cuándo)}
+Determinan \textbf{qué años pre-tratamiento} son más informativos para predecir el
+nivel contrafactual justo antes del tratamiento. Se exige que $\hat{\lambda}_t \geq 0$
+y $\sum_t \hat{\lambda}_t = 1$. Solo existen en SDID y DiD (en SC son todos cero).
+\end{concepto}
+
+Cada método los obtiene de forma diferente:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+& \textbf{SDID} & \textbf{SC} & \textbf{DiD} \\
+\midrule
+$\hat{\omega}_i$ & Optimización regularizada & Optimización (sin regularizar) & Uniforme $1/N_0$ \\
+$\hat{\lambda}_t$ & Optimización regularizada & $0$ para todo $t$ & Uniforme $1/T_0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+En el dataset Cigar hay \textbf{38 estados de control} ($N_0=38$) y \textbf{7 cohortes}
+de adopción: 1975, 1976, 1978, 1979, 1981, 1983 y 1986.
+Cada cohorte tiene su propia estimación de $\hat{\omega}$ y $\hat{\lambda}$ de forma independiente.
+
+% ============================================================
+\newpage
+\section{Tabla 7 — Diferencia máxima entre pesos Python y Stata}
+% ============================================================
+
+\begin{table}[H]
+\centering
+\caption{Diferencia máxima absoluta entre pesos \py{} y \st{}}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Método} & $\max|\hat{\omega}^{\text{Py}} - \hat{\omega}^{\text{Stata}}|$ &
+                  $\max|\hat{\lambda}^{\text{Py}} - \hat{\lambda}^{\text{Stata}}|$ \\
+\midrule
+\rowcolor{sdidcolor}
+SDID & $4.8 \times 10^{-8}$ & $4.0 \times 10^{-8}$ \\
+\rowcolor{sccolor}
+SC   & $5.0 \times 10^{-8}$ & $0$ (exacto) \\
+\rowcolor{didcolor}
+DiD  & $1.1 \times 10^{-8}$ & $4.4 \times 10^{-8}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{¿Qué mide esta tabla?}
+
+Esta tabla es el \textbf{resumen ejecutivo} de toda la comparación de pesos.
+Para cada método, reporta la diferencia absoluta máxima entre los pesos calculados
+por \py{} y los calculados por \st{}, tomando el máximo sobre todas las cohortes
+y todas las unidades (o años).
+
+\begin{interpretacion}
+Las diferencias son del orden de $10^{-8}$, es decir, $0.00000005$. Esto es
+\textbf{ruido numérico puro}, no una diferencia real de implementación.
+
+¿Por qué existen estas diferencias? Ambos paquetes usan el algoritmo
+Frank-Wolfe para resolver la optimización, pero lo implementan en entornos distintos:
+\begin{itemize}
+  \item \py{}: NumPy (Python), aritmética en C/Fortran con IEEE 754 double precision
+  \item \st{}: Mata (Stata), su propio motor de álgebra matricial
+\end{itemize}
+Pequeñas diferencias en el orden de las operaciones flotantes se acumulan iteración
+a iteración hasta producir discrepancias de $\sim10^{-8}$.
+\end{interpretacion}
+
+\begin{resultado}
+A \textbf{4 decimales}, los pesos son \textbf{idénticos} entre Python y Stata
+en los tres métodos y las siete cohortes. El máximo diferencial ($5 \times 10^{-8}$)
+equivale a un error de 1 en la octava cifra decimal. Ambas implementaciones
+convergen al mismo óptimo matemático.
+
+Nota especial SC: $\hat{\lambda}^{SC} = 0$ exactamente en ambos paquetes
+porque es un valor fijo por diseño, no un resultado numérico.
+\end{resultado}
+
+% ============================================================
+\newpage
+\section{Tablas 8, 9 y 10 — Pesos temporales $\hat{\lambda}$ por método}
+% ============================================================
+
+\subsection{Tabla 8 — $\hat{\lambda}$ SDID}
+
+\begin{table}[H]
+\centering
+\caption{Pesos temporales $\hat{\lambda}$ --- SDID. Python $=$ Stata a 4 decimales.}
+\small
+\begin{tabular}{rrrrrrrr}
+\toprule
+Año & 1975 & 1976 & 1978 & 1979 & 1981 & 1983 & 1986 \\
+\midrule
+1963 & 0       & 0.0011 & 0.2195 & 0.1566 & 0.0641 & 0.0711 & 0      \\
+1965 & 0.1382  & 0.1854 & 0      & 0      & 0      & 0      & 0      \\
+1969 & 0       & 0.0034 & 0      & 0      & 0      & 0      & 0      \\
+1974 & \cellcolor{highlight}\textbf{0.8618}  & 0      & 0      & 0      & 0      & 0      & 0      \\
+1975 & --      & \cellcolor{highlight}\textbf{0.8100} & 0      & 0      & 0      & 0      & 0      \\
+1977 & --      & --     & \cellcolor{highlight}\textbf{0.7805} & 0      & 0      & 0      & 0      \\
+1978 & --      & --     & --     & \cellcolor{highlight}\textbf{0.8434} & 0      & 0      & 0      \\
+1980 & --      & --     & --     & --     & \cellcolor{highlight}\textbf{0.9359} & 0      & 0      \\
+1982 & --      & --     & --     & --     & --     & \cellcolor{highlight}\textbf{0.9289} & 0      \\
+1985 & --      & --     & --     & --     & --     & --     & \cellcolor{highlight}\textbf{1.0000} \\
+\midrule
+\multicolumn{8}{l}{\textit{Los años no mostrados tienen $\hat{\lambda}_t = 0$.
+``--'' indica año post-tratamiento para esa cohorte.}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{¿Qué significa?}
+
+El SDID asigna más peso a los años pre-tratamiento que mejor predicen el nivel
+de la variable de resultado justo \textit{antes} de la intervención. El patrón
+es muy claro:
+
+\begin{itemize}
+  \item \textbf{El año inmediatamente anterior al tratamiento recibe casi todo el peso}
+    (resaltado en amarillo), entre 0.76 y 1.00.
+  \item Los demás años reciben pesos pequeños o cero.
+\end{itemize}
+
+\begin{interpretacion}
+\textbf{¿Por qué el último año pre-tratamiento domina?}
+
+El algoritmo SDID busca los años donde el control sintético (construido con
+$\hat{\omega}$) se parece más al grupo tratado. El año más reciente antes del
+tratamiento tiende a ser el mejor predictor del nivel contrafactual
+``en ausencia del tratamiento'', porque captura las tendencias de corto plazo.
+
+\medskip
+\textbf{Cohorte 1986} es el caso extremo: $\hat{\lambda}_{1985}=1.0$.
+Todo el peso recae en el año 1985, el único que predice perfectamente el nivel
+de ventas de cigarrillos que habría tenido el estado 42 si no hubiera subido
+el impuesto en 1986.
+
+\medskip
+\textbf{Cohorte 1963 vs 1965:} Algunas cohortes (1976, 1978, 1979...) tienen
+pesos residuales en 1963 o 1965. Esto ocurre cuando hubo una tendencia especial
+en esos años que el algoritmo considera relevante para el matching de largo plazo.
+
+\medskip
+En los \textbf{gráficos de trayectorias}, el área verde sombreada
+\textit{es} este $\hat{\lambda}$: las barras más altas corresponden a los años
+con más peso, mostrando visualmente qué parte del pre-período ``importa'' más.
+\end{interpretacion}
+
+\subsection{Tabla 9 — $\hat{\lambda}$ SC}
+
+\begin{table}[H]
+\centering
+\caption{Pesos temporales $\hat{\lambda}$ --- SC. Python $=$ Stata a 4 decimales.}
+\small
+\begin{tabular}{rrrrrrrr}
+\toprule
+Año & 1975 & 1976 & 1978 & 1979 & 1981 & 1983 & 1986 \\
+\midrule
+\multicolumn{8}{c}{\textit{SC: $\hat{\lambda}_t = 0\ \forall\,t$ (sin ponderación temporal pre-período).}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{¿Qué significa?}
+
+El Synthetic Control puro \textbf{no usa pesos temporales}. Fija $\hat{\lambda}_t = 0$
+para todos los años pre-tratamiento por diseño. El matching se hace únicamente
+a través de los pesos de unidades $\hat{\omega}_i$.
+
+\begin{interpretacion}
+En el SC clásico (Abadie et al., 2010), el objetivo es encontrar una combinación
+de controles que replique el \textit{nivel promedio} del outcome pre-tratamiento
+(y a veces covariables adicionales). No existe una selección de qué años importan
+más: todos los periodos pre-tratamiento cuentan por igual \textit{en la restricción
+de matching}, aunque el promedio no se construye con pesos lambda explícitos.
+
+\medskip
+En términos de los gráficos de trayectorias: la cohorte SC
+\textbf{no muestra área verde sombreada} porque $\hat{\lambda}_t = 0\ \forall\,t$.
+\end{interpretacion}
+
+\subsection{Tabla 10 — $\hat{\lambda}$ DiD}
+
+\begin{table}[H]
+\centering
+\caption{Pesos temporales $\hat{\lambda}$ --- DiD. Python $=$ Stata a 4 decimales.}
+\small
+\begin{tabular}{rrrrrrrr}
+\toprule
+Año & 1975 & 1976 & 1978 & 1979 & 1981 & 1983 & 1986 \\
+\midrule
+1963 & 0.0833 & 0.0769 & 0.0667 & 0.0625 & 0.0556 & 0.0500 & 0.0435 \\
+1964 & 0.0833 & 0.0769 & 0.0667 & 0.0625 & 0.0556 & 0.0500 & 0.0435 \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+1974 & 0.0833 & 0.0769 & 0.0667 & 0.0625 & 0.0556 & 0.0500 & 0.0435 \\
+1975 & --     & 0.0769 & 0.0667 & 0.0625 & 0.0556 & 0.0500 & 0.0435 \\
+$\vdots$ & & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+1985 & --     & --     & --     & --     & --     & --     & 0.0435 \\
+\midrule
+$T_0$ & 12 & 13 & 15 & 16 & 18 & 20 & 23 \\
+$1/T_0$ & 0.0833 & 0.0769 & 0.0667 & 0.0625 & 0.0556 & 0.0500 & 0.0435 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{¿Qué significa?}
+
+El DiD asigna \textbf{peso uniforme} $\hat{\lambda}_t = 1/T_0$ a cada año
+pre-tratamiento. Cada cohorte tiene un valor distinto porque tiene distinto $T_0$:
+
+\begin{itemize}
+  \item Cohorte 1975: $T_0=12$ años pre $\Rightarrow$ $\hat{\lambda}_t = 1/12 \approx 0.0833$
+  \item Cohorte 1986: $T_0=23$ años pre $\Rightarrow$ $\hat{\lambda}_t = 1/23 \approx 0.0435$
+\end{itemize}
+
+\begin{interpretacion}
+El DiD \textbf{trata todos los años pasados como igualmente informativos}.
+Esto equivale a comparar diferencias en promedio pre vs promedio post,
+sin distinguir si 1963 o 1974 es más relevante para predecir 1975.
+
+Esta restricción es más fuerte que SDID (que concentra el peso en 1-2 años)
+y hace al DiD más sensible a tendencias pre-tratamiento no paralelas.
+\end{interpretacion}
+
+% ============================================================
+\newpage
+\section{Tablas 11, 12 y 13 — Pesos de unidades $\hat{\omega}$ por método}
+% ============================================================
+
+\subsection{Tabla 11 — $\hat{\omega}$ SDID}
+
+\begin{table}[H]
+\centering
+\caption{Pesos unitarios $\hat{\omega}$ --- SDID. Python $=$ Stata a 4 decimales. (Selección de estados)}
+\small
+\begin{tabular}{rrrrrrrr}
+\toprule
+Estado & 1975 & 1976 & 1978 & 1979 & 1981 & 1983 & 1986 \\
+\midrule
+1  & 0.0385 & 0      & 0.0463 & 0.0084 & 0      & 0.0131 & 0.0352 \\
+5  & 0.0503 & \textbf{0.1436} & 0.0078 & 0      & 0.0979 & 0.0173 & 0.0082 \\
+8  & 0      & 0.0126 & 0      & 0.0291 & \textbf{0.2680} & 0.0520 & 0.0174 \\
+14 & 0.0387 & \textbf{0.1770} & 0.0041 & 0.0038 & \textbf{0.1180} & 0.0284 & 0.0308 \\
+18 & 0.0579 & 0      & \textbf{0.1442} & 0.0326 & 0      & 0.0062 & 0.0257 \\
+22 & 0.0296 & 0.0637 & 0.0035 & 0.0021 & \textbf{0.2476} & 0.0375 & 0.0238 \\
+31 & 0.0137 & \textbf{0.2523} & 0      & 0.0102 & \textbf{0.1750} & 0.0150 & 0.0134 \\
+36 & 0      & \textbf{0.1110} & 0      & 0.0298 & 0.0299 & 0.0527 & 0.0196 \\
+39 & 0.0305 & \textbf{0.1293} & 0.0095 & 0.0265 & 0.0068 & 0.0378 & 0.0464 \\
+46 & 0.0535 & 0      & 0.0752 & 0.0395 & 0      & 0.0085 & 0.0718 \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+\midrule
+\multicolumn{8}{l}{\textit{En negrita: pesos $\geq 0.10$. Total: 38 estados de control, todos con $\hat{\omega}_i\geq 0$, $\sum=1$.}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{¿Qué significa?}
+
+Los pesos $\hat{\omega}^{SDID}$ miden la importancia de cada estado de control
+en la construcción del contrafactual sintético. Sus características son:
+
+\begin{enumerate}
+  \item \textbf{Difusos}: La mayoría de los 38 estados recibe algún peso positivo.
+    Raramente un solo estado domina.
+  \item \textbf{Regularizados}: El SDID penaliza pesos extremos mediante el parámetro
+    $\zeta_\omega = \eta \cdot \hat{\sigma}$, donde $\eta = (N_1 T_1)^{1/4}$.
+    Esto evita el overfitting al pre-período.
+  \item \textbf{Varían por cohorte}: Cada cohorte tiene su propio grupo de controles
+    más relevantes, porque el conjunto de tratados cambia.
+\end{enumerate}
+
+\begin{interpretacion}
+\textbf{Cohorte 1976} es notable: el estado 31 recibe $\hat{\omega}_{31}=0.2523$
+(el peso más alto del SDID en todo el documento). Esto indica que ese estado
+de control sigue una trayectoria de ventas de cigarrillos muy similar a los
+2 estados tratados en 1976 (estados 9 y 40).
+
+\medskip
+\textbf{Cohorte 1981}: Los estados 8 (0.2680) y 22 (0.2476) dominan,
+concentrando juntos el 51.6\% del peso. Esto sucede porque, para esa cohorte,
+esos dos estados son los mejores ``gemelos'' del estado tratado (7)
+en términos de tendencia pre-tratamiento de ventas.
+
+\medskip
+Los estados con $\hat{\omega}_i=0$ no contribuyen al contrafactual;
+el algoritmo los descartó porque sus trayectorias no aportan información
+adicional para el matching.
+\end{interpretacion}
+
+\subsection{Tabla 12 — $\hat{\omega}$ SC}
+
+\begin{table}[H]
+\centering
+\caption{Pesos unitarios $\hat{\omega}$ --- SC. Python $=$ Stata a 4 decimales. (Selección de estados)}
+\small
+\begin{tabular}{rrrrrrrr}
+\toprule
+Estado & 1975 & 1976 & 1978 & 1979 & 1981 & 1983 & 1986 \\
+\midrule
+4  & 0      & 0      & 0      & \textbf{0.4494} & 0      & 0      & 0.0162 \\
+5  & 0.1193 & 0      & 0      & 0      & 0      & 0      & 0      \\
+8  & 0      & 0.1676 & 0.0030 & 0      & 0.0435 & 0.0285 & 0      \\
+10 & 0.0302 & 0      & 0.0885 & 0      & 0      & 0.1354 & 0      \\
+14 & 0      & \textbf{0.3841} & 0      & 0      & 0      & 0      & 0      \\
+17 & \textbf{0.3106} & 0      & 0      & 0.0129 & 0      & 0      & 0      \\
+18 & 0.0480 & 0      & \textbf{0.3175} & 0.0156 & 0      & 0.0147 & 0.0002 \\
+22 & 0      & 0      & 0      & 0      & \textbf{0.9188} & 0.0026 & 0      \\
+30 & 0.0005 & \textbf{0.3057} & 0.0335 & 0.0448 & 0      & 0.0562 & 0.0036 \\
+33 & 0.0882 & 0      & \textbf{0.3645} & 0      & 0      & 0      & 0.0875 \\
+45 & 0.0001 & 0.0007 & 0.0077 & 0.0083 & 0      & 0.0051 & \textbf{0.4037} \\
+46 & 0.1933 & 0      & 0.1025 & 0.0474 & 0      & 0      & \textbf{0.2015} \\
+50 & 0      & 0      & 0      & \textbf{0.2647} & 0      & \textbf{0.3445} & 0      \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+\midrule
+\multicolumn{8}{l}{\textit{En negrita: pesos $\geq 0.10$. La mayoría de estados tienen $\hat{\omega}_i=0$.}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{¿Qué significa?}
+
+Los pesos $\hat{\omega}^{SC}$ son mucho más \textbf{dispersos} (sparse) que los del SDID:
+
+\begin{enumerate}
+  \item \textbf{Alta concentración}: 1-4 estados reciben casi todo el peso por cohorte.
+  \item \textbf{Muchos ceros}: La mayoría de los 38 estados de control reciben $\hat{\omega}_i=0$.
+  \item \textbf{Sin regularización} (o mínima, $\zeta=10^{-6}\hat{\sigma}$): el SC
+    puede asignar pesos muy extremos si un estado replica bien el pre-período.
+\end{enumerate}
+
+\begin{interpretacion}
+\textbf{Casos extremos:}
+
+\begin{itemize}
+  \item \textbf{Cohorte 1981}: Estado 22 recibe $\hat{\omega}_{22}^{SC}=0.9188$.
+    Un solo estado de control construye el 92\% del contrafactual. Esto indica que
+    el estado 22 tiene una trayectoria pre-tratamiento \textit{casi idéntica}
+    al estado tratado 7, pero también es señal de potencial \textbf{overfitting}:
+    el contrafactual ``memoriza'' el pre-período en lugar de generalizar.
+  \item \textbf{Cohorte 1979}: Estado 4 recibe 0.4494, Estado 50 recibe 0.2647.
+    Dos estados concentran el 71\% del peso.
+\end{itemize}
+
+\medskip
+\textbf{Comparación con SDID:} El SDID distribuye el peso entre muchos más estados,
+lo que le da mayor \textbf{estabilidad} ante posibles outliers. El SC puede dar
+estimaciones más precisas si el matching es perfecto, pero más sensibles si uno
+de los estados ``dominantes'' tiene un shock idiosincrásico.
+\end{interpretacion}
+
+\subsection{Tabla 13 — $\hat{\omega}$ DiD}
+
+\begin{table}[H]
+\centering
+\caption{Pesos unitarios $\hat{\omega}$ --- DiD. Python $=$ Stata a 4 decimales.}
+\small
+\begin{tabular}{rrrrrrrr}
+\toprule
+Estado & 1975 & 1976 & 1978 & 1979 & 1981 & 1983 & 1986 \\
+\midrule
+\multicolumn{8}{c}{\textit{DiD: los 38 estados de control reciben peso uniforme
+$\hat{\omega}_i = 1/38 \approx 0.0263$ en todas las cohortes.}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{¿Qué significa?}
+
+El DiD asigna el mismo peso $1/38 \approx 0.0263$ a \textbf{todos} los estados de control,
+independientemente de si su trayectoria pre-tratamiento se parece o no a la del tratado.
+
+\begin{interpretacion}
+\textbf{El DiD es el estimador menos flexible de los tres.} No intenta encontrar
+los controles más parecidos: simplemente promedia a todos por igual.
+Esto equivale a comparar la diferencia en medias:
+
+\[
+  \widehat{ATT}^{DiD} = \underbrace{\bar{Y}_{\text{tratados, post}}}_{\text{promedio post trat.}}
+  - \underbrace{\bar{Y}_{\text{tratados, pre}}}_{\text{promedio pre trat.}}
+  - \left(\underbrace{\bar{Y}_{\text{controles, post}}}_{\text{promedio post control}}
+         - \underbrace{\bar{Y}_{\text{controles, pre}}}_{\text{promedio pre control}}\right)
+\]
+
+\medskip
+En el documento, el ATT DiD es $-19.48$ vs SDID $-13.85$.
+La diferencia ($\approx 5.6$ paquetes) refleja que el grupo de controles
+promedio \textit{no} es un buen contrafactual para los estados tratados:
+los estados con alza fiscal tenían tendencias pre-tratamiento distintas
+al promedio nacional, lo que el SDID y SC corrigen mediante sus pesos óptimos.
+\end{interpretacion}
+
+% ============================================================
+\newpage
+\section{Comparación cruzada de los tres métodos}
+% ============================================================
+
+\subsection{Resumen de pesos $\hat{\lambda}$}
+
+\begin{table}[H]
+\centering
+\caption{Características de $\hat{\lambda}$ por método}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Característica} & \textbf{SDID} & \textbf{SC} & \textbf{DiD} \\
+\midrule
+Optimización & Sí (regularizada) & No (fijado en 0) & No (uniforme) \\
+Años con peso $>0$ & 1--3 por cohorte & Ninguno & Todos los pre-período \\
+Concentración & Alta (1 año domina) & --- & Nula (uniforme) \\
+Peso máximo típico & 0.86--1.00 & 0 & $1/T_0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Resumen de pesos $\hat{\omega}$}
+
+\begin{table}[H]
+\centering
+\caption{Características de $\hat{\omega}$ por método}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Característica} & \textbf{SDID} & \textbf{SC} & \textbf{DiD} \\
+\midrule
+Optimización & Sí (regularizada) & Sí (sin regularizar) & No (uniforme) \\
+Estados con peso $>0$ & $\sim$25--35 de 38 & 3--8 de 38 & Los 38 \\
+Concentración & Baja-moderada & Alta & Nula \\
+Peso máximo típico & 0.10--0.27 & 0.38--0.92 & 0.0263 \\
+Riesgo overfitting & Bajo & Alto & Muy bajo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{resultado}
+Los tres métodos producen ATT \textbf{idénticos a 4 decimales} entre Python y Stata,
+confirma\-do por las Tablas 7--13. Las diferencias residuales de $\sim10^{-8}$ en los
+pesos son acumulaciones de redondeo de punto flotante en el algoritmo Frank-Wolfe,
+sin ningún efecto práctico sobre las estimaciones.
+
+\medskip
+La elección entre SDID, SC y DiD no afecta la \textit{equivalencia numérica}
+entre implementaciones, pero sí afecta la \textit{estimación del ATT}:
+el DiD sobreestima el efecto ($-19.48$ vs $-13.85$ SDID) porque usa controles
+no comparables; el SC produce $-13.37$, muy cercano al SDID gracias a sus
+pesos óptimos, pero con mayor riesgo de overfitting por su alta concentración.
+\end{resultado}
+
+% ============================================================
+\newpage
+\begin{thebibliography}{9}
+\bibitem{arkhangelsky2021}
+Arkhangelsky, D., Athey, S., Hirshberg, D.A., Imbens, G.W. \& Wager, S. (2021).
+\textit{Synthetic Difference-in-Differences}.
+\textit{American Economic Review}, 111(12), 4088--4118.
+
+\bibitem{abadie2010}
+Abadie, A., Diamond, A. \& Hainmueller, J. (2010).
+\textit{Synthetic Control Methods for Comparative Case Studies:
+Estimating the Effect of California's Tobacco Control Program}.
+\textit{Journal of the American Statistical Association}, 105(490), 493--505.
+
+\bibitem{pailanir2022}
+Pailañir, D. \& Clarke, D. (2022).
+\textit{SDID: Stata module to implement Synthetic Difference-in-Differences}.
+Statistical Software Components S459058, Boston College.
+
+\bibitem{baltagi2002}
+Baltagi, B.H. (2002).
+\textit{Econometrics} (3rd ed.). Springer.
+\end{thebibliography}
+
+\end{document}

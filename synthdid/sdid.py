@@ -13,7 +13,7 @@ def sdid(data: pd.DataFrame, unit, time, treatment, outcome, covariates=None,
 	tdf, ttime = panel_matrices(data, unit, time, treatment, outcome, covariates)
 	beta_covariate = []
 	if (covariates is not None) and (cov_method == "projected"):
-		tdf, beta_covariates, _ = projected(tdf, outcome, unit, time, covariates)
+		tdf, beta_covariates, _ = projected(tdf, 'outcome', 'unit', 'time', covariates)
 	
 	T_total = 0
 	break_points = len(ttime)
@@ -173,23 +173,27 @@ class SDID:
 			Al, bl = Yc.iloc[:N0, :T0], Yc.iloc[:N0, T0]
 			Ao, bo = Yc.T.iloc[:T0, :N0], Yc.T.iloc[:T0, N0]
 			if covariates is None or cov_method == "projected":
+				# For SC (synth): use small regularization (1e-6) and no intercept, matching Stata
+				zeta_omega_eff = 1e-6 * noise_level if synth else zeta_omega
+				omega_intercept_eff = False if synth else omega_intercept
+
 				if not synth and not did:
 					lambda_opt = sc_weight_fw(Al, bl, None, intercept=lambda_intercept, zeta=zeta_lambda, min_decrease=min_decrease, max_iter=max_iter_pre_sparsify)
 				if not did:
-					omega_opt = sc_weight_fw(Ao, bo, None, intercept=omega_intercept, zeta=zeta_omega, min_decrease=min_decrease, max_iter=max_iter_pre_sparsify)
+					omega_opt = sc_weight_fw(Ao, bo, None, intercept=omega_intercept_eff, zeta=zeta_omega_eff, min_decrease=min_decrease, max_iter=max_iter_pre_sparsify)
 
 				if sparsify is not None:
 					if not synth and not did:
 						lambda_opt = sc_weight_fw(Al, bl, sparsify(lambda_opt["params"]), intercept=lambda_intercept, zeta=zeta_lambda, min_decrease=min_decrease, max_iter=max_iter)
 					if not did:
-						omega_opt = sc_weight_fw(Ao, bo, sparsify(omega_opt["params"]), intercept=omega_intercept, zeta=zeta_omega, min_decrease=min_decrease, max_iter=max_iter)
+						omega_opt = sc_weight_fw(Ao, bo, sparsify(omega_opt["params"]), intercept=omega_intercept_eff, zeta=zeta_omega_eff, min_decrease=min_decrease, max_iter=max_iter)
 
 				if not synth and not did:
 					lambda_est = lambda_opt["params"]
-					omega_est = omega_opt["params"]				
+					omega_est = omega_opt["params"]
 				if synth:
-					lambda_est = np.full(T0,1/T0)
-					omega_est = omega_opt["params"]				
+					lambda_est = np.zeros(T0)  # SC: zero pre-period weights (Stata: lambda_l = zeros)
+					omega_est = omega_opt["params"]
 				if did:
 					lambda_est = np.full(T0,1/T0)
 					omega_est = np.full(N0,1/N0)

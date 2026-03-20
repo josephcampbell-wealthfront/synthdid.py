@@ -1,4 +1,4 @@
-import matplotlib, matplotlib.pyplot as plt, numpy as np, pandas as pd
+import matplotlib, matplotlib.pyplot as plt, numpy as np, pandas as pd, math
 
 class Plots:
     def plot_outcomes(self, times = None, time_title_cb = int, labels=None, wtplot=True, axlimit_zero=False):
@@ -36,9 +36,6 @@ class Plots:
             if axlimit_zero:
                 base_plot = 0
 
-            range_fill = pd.DataFrame(
-                {"line": lambda_hat * plot_height / 3 + base_plot, "time": t_span[:T0]}
-            )
             trajectory = pd.DataFrame(
                 {
                     "time": t_span,
@@ -51,17 +48,64 @@ class Plots:
             ax.plot("time", "control", label=labels[0], data=trajectory, linestyle="--")
             ax.plot("time", "treatment", label=labels[1], data=trajectory)
             ax.legend(loc='upper right', fontsize=10, frameon=False)
-            if axlimit_zero:
-                ax.set_ylim(ymin=0)
-            
             if base_plot < 0 and plot_y_max > 0:
                 ax.axhline(y=0, color="grey", linestyle="--", lw=.8, alpha=.3)
             if wtplot:
-                ax.fill_between("time", base_plot, "line", data=range_fill, label="", alpha=0.6, color="gray")
-            ax.axvline(x=times[i], label="", color='k', linestyle="--", lw=.8)
+                # Secondary y-axis for lambda weights, matching Stata:
+                # ylim(0, 3) so lambda=1.0 appears at 1/3 of chart height (bottom third),
+                # then relabel ticks to show the true 0-1 scale.
+                ax2 = ax.twinx()
+                # Prepend a zero anchor one year before the pre-treatment period and
+                # end at the last pre-treatment year (no explicit zero at treatment
+                # year). This closes the polygon with a vertical right wall at the
+                # last pre-treatment year, matching Stata's twoway area behaviour.
+                pre_years = t_span[:T0]
+                anchor_year = pre_years[0] - 1
+                lambda_times = np.concatenate([[anchor_year], pre_years])
+                lambda_values = np.concatenate([[0], lambda_hat])
+                ax2.fill_between(lambda_times, 0, lambda_values, alpha=0.6, color="#556B2F")
+                ax2.set_ylim(0, 3)
+                ax2.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+                ax2.set_yticklabels(["0.0", "0.3", "0.5", "0.8", "1.0"])
+                ax2.set_ylabel("Lambda weight")
+            # Extend x-axis 3 years to the left so small pre-treatment triangles are
+            # not clipped at the edge (mirrors Stata's default padding behaviour).
+            ax.set_xlim(t_span[0] - 3, t_span[-1] + 1)
+            ax.axvline(x=times[i], label="", color='r', linestyle="-", lw=.8)
 
             ax.set_xlabel("Time")
             ax.set_title("Adoption: " + str(time_title_cb(time)));
+
+            # Set y-axis limits AFTER all plotting to match Stata's tick-aligned axis range.
+            # Both bottom and top are aligned to the nearest "nice" tick, matching Stata's
+            # twoway defaults.  The tick interval is the same one Stata would auto-select
+            # for ~4 ticks.  Fallback to a 5% margin when the tick boundary is too far away.
+            if axlimit_zero:
+                ax.set_ylim(ymin=0)
+            else:
+                _rng = plot_y_max - plot_y_min
+                _rough = _rng / 4.0
+                _exp = math.floor(math.log10(_rough))
+                _base = 10 ** _exp
+                _nf = _rough / _base
+                if _nf < 1.5:   _tick = _base
+                elif _nf < 3.0: _tick = 2 * _base
+                elif _nf < 7.0: _tick = 5 * _base
+                else:           _tick = 10 * _base
+                # Bottom: use tick_floor when gap ≤ 50% of one tick interval; else
+                # use the data minimum directly (no added margin), matching Stata.
+                _tick_floor = math.floor(plot_y_min / _tick) * _tick
+                if (plot_y_min - _tick_floor) / _tick > 0.5:
+                    _y_bot = plot_y_min
+                else:
+                    _y_bot = _tick_floor
+                # Top: use tick_ceil when gap ≤ 75% of one tick interval; else 5% margin.
+                _tick_ceil = math.ceil(plot_y_max / _tick) * _tick
+                if (_tick_ceil - plot_y_max) / _tick > 0.75:
+                    _y_top = plot_y_max + 0.05 * _rng
+                else:
+                    _y_top = _tick_ceil
+                ax.set_ylim(bottom=_y_bot, top=_y_top)
 
             # plots[f"t_{time}"] = fig
             plots.append(fig)
@@ -134,11 +178,16 @@ class Plots:
                 size_dot = np.interp(size_dot, (size_dot.min(), size_dot.max()), (1, 50))
                 weights_dots["size_dot"] = size_dot
 
-            fig, ax = plt.subplots()
+            weights_dots = weights_dots.reset_index(drop=True)
+            weights_dots["pos"] = np.arange(len(weights_dots))
 
-            ax.scatter("unit", "difs", data = weights_dots, s = "size", c = "color", label = "")
-            ax.set_xticks(range(len(units)))
-            ax.set_xticklabels(units, rotation = 90, fontsize = ns);
+            fig, ax = plt.subplots(figsize=(max(6, len(weights_dots) * 0.28), 5))
+
+            ax.scatter("pos", "difs", data=weights_dots, s="size", c="color", label="")
+            ax.set_xticks(weights_dots["pos"])
+            ax.set_xticklabels(weights_dots["unit"], rotation=90, fontsize=ns)
+            ax.set_xlim(-0.8, len(weights_dots) - 0.2)
+            fig.tight_layout()
             ax.set_xlabel("Group")
             ax.set_ylabel("Difference")
             ax.set_title("Adoption: " + str(time_title_cb(times[i])))

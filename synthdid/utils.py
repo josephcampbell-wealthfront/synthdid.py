@@ -12,21 +12,14 @@ def panel_matrices(data: pd.DataFrame(), unit, time, treatment, outcome, covaria
 
 	unit, time, outcome, treatment = data_ref.columns
 
-	data_ref = (
-		data_ref
-		.groupby(unit, group_keys=False).apply(lambda x: x.assign(
-				treated=x[treatment].max(),
-				ty=np.where(x[treatment] == 1, x[time], np.nan),
-		))
-		.reset_index(drop=True)
-		.groupby(unit, group_keys=False).apply(
-				lambda x: x.assign(
-						tyear=np.where(x.treated == 1, x.ty.min(), np.nan)
-				)
-		)
-		.reset_index(drop=True)
-		.sort_values(["treated", unit, time])
+	data_ref["treated"] = data_ref.groupby(unit)[treatment].transform("max")
+	data_ref["ty"] = np.where(data_ref[treatment] == 1, data_ref[time], np.nan)
+	data_ref["tyear"] = np.where(
+		data_ref["treated"] == 1,
+		data_ref.groupby(unit)["ty"].transform("min"),
+		np.nan
 	)
+	data_ref = data_ref.reset_index(drop=True).sort_values(["treated", unit, time])
 
 	break_points = np.unique(data_ref.tyear)
 	break_points = break_points[~np.isnan(break_points)]
@@ -49,34 +42,33 @@ def panel_matrices(data: pd.DataFrame(), unit, time, treatment, outcome, covaria
 def projected(data, outcome, unit, time, covariates):
 
   k = len(covariates)
-  X = np.array(data[covariates])
-  y = np.atleast_2d(np.array(data[outcome])).T
+  X_all = np.array(data[covariates])
+  y_all = np.array(data[outcome])
 
-  # Pick non-treated
+  # Pick non-treated (control) units
   df_c = data[data.tyear == 0]
 
-  # One-hot encoding for time and unit
-  df_c = pd.concat([df_c, pd.get_dummies(df_c[[unit, time]], prefix_sep = "", prefix = "", columns = [unit, time], drop_first = True)], axis = 1)
-  o_h_cov = covariates + list(df_c[unit].unique()[1:]) + list(str(i) for i in df_c[time].unique()[1:])
+  # ALL year and unit FE dummies (no drop_first), matching Stata invsym approach
+  year_dummies = pd.get_dummies(df_c[time]).astype(float)
+  unit_dummies = pd.get_dummies(df_c[unit]).astype(float)
 
-  # create X_c matrix with covariates, one-hot encoding. Create Y_c vector
-  y_c = np.atleast_2d(df_c[outcome].to_numpy()).T
-  X_c = df_c[o_h_cov].to_numpy()
-  X_c = np.c_[X_c, np.ones(X_c.shape[0])]
+  y_c = df_c[outcome].to_numpy(dtype=float)
+  X_cov = df_c[covariates].to_numpy(dtype=float)
+  # Stack: covariates + all year dummies + all unit dummies + intercept
+  X_c = np.column_stack([X_cov, year_dummies.to_numpy(), unit_dummies.to_numpy(), np.ones(len(df_c))])
 
-  # OLS for Y_c on X_c, get beta
-  XX = np.dot(X_c.T, X_c)
-  Xy = np.dot(X_c.T, y_c)
-  all_beta = np.dot(np.linalg.inv(XX), Xy)
+  # Use lstsq (pseudoinverse) to match Stata invsym behavior with collinear dummies
+  all_beta, _, _, _ = np.linalg.lstsq(X_c, y_c, rcond=None)
   beta = all_beta[:k]
 
-  # Calculate adjusted Y
-  Y_adj = y - np.dot(X, beta)
+  # Apply projection to all units
+  Y_adj = y_all - X_all @ beta
 
   # output projected data
+  data = data.copy()
   data[outcome] = Y_adj
 
-  return (data, beta, X)
+  return (data, beta, X_all)
 
 def collapse_form(Y: np.ndarray, N0: int, T0: int):
 	N, T = Y.shape
@@ -94,11 +86,6 @@ def sum_normalize(x):
         return x / np.sum(x)
     else:
         return np.full(len(x), 1/len(x))
-    
-def att_mult(Y_beta, omega, _lambda, N1, T1):
-    weights_omega = np.concatenate(([-omega], np.full(N1, 1/N1)))
-    weights_lambda = np.concatenate(([-_lambda], np.full(T1, 1/T1)))
-    return np.dot(weights_omega, Y_beta).dot(weights_lambda)
     
 def sparsify_function(v) -> np.array:
 	v = np.where(v <= np.max(v) / 4, 0, v)

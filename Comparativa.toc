@@ -1,0 +1,11 @@
+\contentsline {section}{\numberline {1}Descripción del Experimento}{2}{section.1}%
+\contentsline {section}{\numberline {2}Experimento 1: Estimación SDID Base}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Resultado Global}{3}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}ATT por Cohorte de Adopción}{3}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Experimento 2: Comparación de Métodos SDID vs SC vs DiD}{4}{section.3}%
+\contentsline {section}{\numberline {4}Experimento 3: Métodos de Inferencia}{5}{section.4}%
+\contentsline {section}{\numberline {5}Experimento 4: Inclusión de Covariables}{6}{section.5}%
+\contentsline {section}{\numberline {6}Experimento 5: Gráficos de Trayectorias (Tratados vs Control Sintético)}{7}{section.6}%
+\contentsline {section}{\numberline {7}Experimento 6: Gráficos de Pesos de Unidades de Control ($\hat \omega $)}{10}{section.7}%
+\contentsline {section}{\numberline {8}Experimento 7: Comparaci\'on de Pesos ($\hat {\omega }$ y $\hat {\lambda }$)}{13}{section.8}%
+\contentsline {section}{\numberline {9}Resumen Comparativo}{17}{section.9}%
