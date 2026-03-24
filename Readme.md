@@ -1,7 +1,7 @@
 # synthdid: Synthetic Difference-in-Differences Estimation
 
 [![PyPI](https://img.shields.io/pypi/v/synthdid)](https://pypi.org/project/synthdid/)
-[![Downloads](https://img.shields.io/pypi/dm/synthdid)](https://pypi.org/project/synthdid/)
+[![Downloads](https://static.pepy.tech/badge/synthdid/month)](https://pepy.tech/project/synthdid)
 [![Last Commit](https://img.shields.io/github/last-commit/d2cml-ai/synthdid.py)](https://github.com/d2cml-ai/synthdid.py)
 [![Stars](https://img.shields.io/github/stars/d2cml-ai/synthdid.py)](https://github.com/d2cml-ai/synthdid.py/stargazers)
 [![Issues](https://img.shields.io/github/issues/d2cml-ai/synthdid.py)](https://github.com/d2cml-ai/synthdid.py/issues)
