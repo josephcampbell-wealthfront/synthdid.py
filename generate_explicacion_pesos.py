@@ -261,6 +261,33 @@ def tabla(S, header, filas, anchos=None, marcar_ult=False, col_verde=None):
     t.setStyle(TableStyle(style))
     return t
 
+def explicacion(texto, S):
+    """Caja de explicacion gris debajo de cada tabla."""
+    ps = ParagraphStyle("ex",
+        fontName="Helvetica", fontSize=9, leading=14,
+        textColor=colors.HexColor("#1e293b"))
+    ps_tit = ParagraphStyle("ext",
+        fontName="Helvetica-Bold", fontSize=8.5, leading=12,
+        textColor=colors.HexColor("#0f172a"))
+    filas = [
+        [Table([[Paragraph("Como leer esta tabla", ps_tit)]], colWidths=[BODY_W],
+               style=[("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#e2e8f0")),
+                      ("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4),
+                      ("LEFTPADDING",(0,0),(-1,-1),10)])],
+        [Table([[Paragraph(texto, ps)]], colWidths=[BODY_W],
+               style=[("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#f8fafc")),
+                      ("TOPPADDING",(0,0),(-1,-1),7),("BOTTOMPADDING",(0,0),(-1,-1),7),
+                      ("LEFTPADDING",(0,0),(-1,-1),12),("RIGHTPADDING",(0,0),(-1,-1),12)])],
+    ]
+    t = Table(filas, colWidths=[BODY_W])
+    t.setStyle(TableStyle([
+        ("BOX",(0,0),(-1,-1),0.8,colors.HexColor("#94a3b8")),
+        ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),
+        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+    ]))
+    return t
+
+
 def tabla_comp(S, header, filas, anchos=None):
     ps_h = ParagraphStyle("tch", fontName="Helvetica-Bold", fontSize=8.5,
                            textColor=WHITE, alignment=TA_CENTER, leading=12)
@@ -573,6 +600,14 @@ def build(output="Explicacion_pesos.pdf"):
         ],
         anchos=[3.0*cm, 4.8*cm, 4.5*cm, 4.2*cm]
     ))
+    story.append(esp(0.15))
+    story.append(explicacion(
+        "Cada fila representa un tipo de peso (omega para unidades, lambda para tiempo). "
+        "Las columnas muestran como cada metodo obtiene ese peso: SDID mediante optimizacion con "
+        "penalizacion adaptativa, SC con penalizacion casi nula (lo que genera pesos concentrados), "
+        "y DiD con una formula fija sin optimizacion. Esta tabla es el mapa conceptual del documento: "
+        "todas las tablas siguientes son la expresion numerica de estos principios.", S
+    ))
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════
@@ -597,6 +632,17 @@ def build(output="Explicacion_pesos.pdf"):
             ["DiD",  "1.1 x 10^-8", "4.4 x 10^-8", "Si (diferencia en 8va cifra)"],
         ],
         anchos=[2.2*cm, 4.5*cm, 4.5*cm, 5.3*cm], col_verde=3
+    ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> cada metodo de estimacion (SDID, SC, DiD). "
+        "<b>Columnas 2 y 3:</b> diferencia maxima absoluta entre los pesos calculados por Python y "
+        "por Stata — un numero cerca de cero significa que ambas implementaciones convergen al mismo resultado. "
+        "<b>Columna 4:</b> conclusion practica. "
+        "Los valores del orden de 10^-8 son insignificantes: equivalen a discrepancias en la "
+        "octava cifra decimal, bien por debajo de cualquier umbral de precision relevante en econometria. "
+        "La fila SC muestra 0.0 exacto en lambda porque ese valor es fijo por diseno — "
+        "no resultado de ninguna optimizacion numerica.", S
     ))
     story.append(esp(0.3))
 
@@ -653,6 +699,16 @@ def build(output="Explicacion_pesos.pdf"):
         "'—' = periodo post-tratamiento (no aplica lambda).",
         S["nota"]
     ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> años del dataset Cigar (1963-1985). Solo se muestran los años con peso distinto de cero. "
+        "<b>Columnas:</b> cada cohorte de adopcion (por ejemplo c.1975 = estados que adoptaron la ley en 1975). "
+        "<b>Valores:</b> peso lambda asignado a ese año para construir el contrafactual de esa cohorte; "
+        "la suma de cada columna es 1. "
+        "El patron clave es que casi todo el peso recae en el ultimo año antes del tratamiento (fila amarilla): "
+        "el optimizador concluye que ese año resume mejor el nivel base que tendria el tratado sin intervencion. "
+        "Los valores '—' indican que ese año ya es post-tratamiento para esa cohorte y por tanto no entra en la optimizacion.", S
+    ))
     story.append(esp(0.2))
     story.append(etiqueta("Tabla 8b: Concentracion lambda en el ultimo año pre-tratamiento", S))
     story.append(tabla(S,
@@ -667,6 +723,17 @@ def build(output="Explicacion_pesos.pdf"):
             ["1986", "1985", "1.0000", "100%  — caso extremo"],
         ],
         anchos=[2.5*cm, 4.0*cm, 3.5*cm, 6.5*cm]
+    ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> las 7 cohortes del dataset. "
+        "<b>Columna 2:</b> el ultimo año disponible antes del tratamiento (T0). "
+        "<b>Columna 3:</b> valor exacto del peso que recibe ese año. "
+        "<b>Columna 4:</b> porcentaje del total; idealmente la suma de todos los pesos de esa cohorte es 1, "
+        "y esta columna muestra cuanto concentra ese unico año. "
+        "El caso extremo es la cohorte 1986: lambda_1985 = 1.0000, es decir, el 100% del peso temporal "
+        "recae en un solo año — el optimizador determina que 1985 predice perfectamente el nivel "
+        "contrafactual para los estados que adoptaron la ley en 1986.", S
     ))
     story.append(esp(0.4))
 
@@ -684,6 +751,16 @@ def build(output="Explicacion_pesos.pdf"):
         [["Todas (1975-1986)", "Para todo t = 1,...,T0", "0.0000",
           "Restriccion estructural del metodo SC"]],
         anchos=[4.0*cm, 4.5*cm, 2.5*cm, 5.5*cm]
+    ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "Esta tabla tiene una sola fila porque el resultado es el mismo para todas las cohortes: "
+        "lambda = 0 sin excepcion. "
+        "<b>Por que es importante esta tabla?</b> Confirma que el SC puro prescinde completamente "
+        "de la informacion temporal del pre-periodo. El contrafactual SC se construye exclusivamente "
+        "con los pesos de unidades (omega), buscando replicar el nivel promedio del outcome — "
+        "no su tendencia. Esto lo hace mas simple pero tambien mas vulnerable a cambios de nivel "
+        "que ocurran justo antes del tratamiento.", S
     ))
     story.append(esp(0.4))
 
@@ -708,6 +785,17 @@ def build(output="Explicacion_pesos.pdf"):
             ["c.1986", "1986", "23", "0.0435", "1963 - 1985"],
         ],
         anchos=[2.2*cm, 3.3*cm, 3.5*cm, 3.5*cm, 4.0*cm]
+    ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> las 7 cohortes del dataset. "
+        "<b>Columna T0:</b> numero de periodos pre-tratamiento disponibles para esa cohorte. "
+        "<b>Columna lambda_t = 1/T0:</b> el peso que recibe cada uno de esos años — identico para todos. "
+        "<b>Columna 'Años incluidos':</b> el rango de años que entran en el calculo del contrafactual temporal. "
+        "Observese que cohortes mas tardias (ej. 1986, T0=23) tienen un lambda por año menor (0.0435) "
+        "porque el peso se reparte entre mas periodos. Al contrario, cohortes tempranas (ej. 1975, T0=12) "
+        "dan mas peso a cada año individual (0.0833). En todos los casos el supuesto implicito es que "
+        "1963 aporta la misma informacion que 1974 — algo que el SDID rechaza al concentrar el peso en años recientes.", S
     ))
     story.append(esp(0.2))
     story.append(caja(
@@ -749,6 +837,18 @@ def build(output="Explicacion_pesos.pdf"):
         anchos=[1.8*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm, 2.2*cm]
     ))
     story.append(Paragraph("Total: 38 estados de control. Se muestran 10 representativos.", S["nota"]))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> identificador numerico del estado de control (hay 38 en total). "
+        "<b>Columnas:</b> cada cohorte de adopcion. "
+        "<b>Valores:</b> peso omega asignado a ese estado para construir el contrafactual de esa cohorte; "
+        "la suma de cada columna es 1. Un valor 0 significa que ese estado no contribuye al contrafactual de esa cohorte. "
+        "La caracteristica distintiva del SDID es que los pesos estan <b>distribuidos entre muchos estados</b> "
+        "(22-35 de 38), ninguno con un peso dominante mayor de 0.27. "
+        "Esto refleja la penalizacion fuerte zeta que evita que el contrafactual dependa de un solo control. "
+        "Los pesos tambien cambian entre cohortes porque zeta = (N1*T1)^(1/4)*sigma es adaptativo: "
+        "cohortes con mas tratados o mas periodos post-tratamiento tienen mayor penalizacion.", S
+    ))
     story.append(esp(0.4))
 
     # 4.2 omega SC
@@ -782,6 +882,18 @@ def build(output="Explicacion_pesos.pdf"):
         "cohorte 1981 con omega_22 = 0.9188 (91.9% del contrafactual en 1 estado).",
         S["nota"]
     ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> identificador del estado de control. "
+        "<b>Columnas:</b> cada cohorte de adopcion. "
+        "<b>Valores:</b> peso omega asignado; la suma de cada columna es 1. "
+        "A diferencia de la Tabla 11 (SDID), aqui la mayoria de celdas son 0 — el SC asigna todo el peso "
+        "a 3-8 estados que replican casi perfectamente la trayectoria pre-tratamiento del tratado. "
+        "El caso mas extremo es la cohorte 1981 (columna c.1981): el estado 22 recibe omega = 0.9188, "
+        "es decir, el 91.9% del contrafactual proviene de un solo estado. "
+        "Esto indica un ajuste muy preciso al pre-periodo pero con alto riesgo de overfitting: "
+        "el estado 22 puede no generalizar bien al periodo post-tratamiento.", S
+    ))
     story.append(esp(0.4))
 
     # 4.3 omega DiD
@@ -797,6 +909,16 @@ def build(output="Explicacion_pesos.pdf"):
         ["Cohorte", "N0 (controles)", "omega_i = 1/N0", "Aplicacion"],
         [["Todas las cohortes", "38", "0.0263", "Los 38 estados pesan exactamente igual"]],
         anchos=[4.0*cm, 3.0*cm, 3.5*cm, 6.0*cm]
+    ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "Esta tabla tiene una sola fila porque el resultado es identico para todas las cohortes y todos los estados: "
+        "omega_i = 1/38 = 0.0263. No hay variacion — todos los 38 estados de control reciben exactamente el mismo peso. "
+        "<b>Que implica esto?</b> El contrafactual DiD es simplemente el promedio no ponderado de todos los estados "
+        "de control. Estados con trayectorias muy distintas al tratado contribuyen igual que los similares. "
+        "Esto introduce sesgo cuando el grupo tratado no es representativo del promedio nacional, "
+        "como ocurre en el dataset Cigar (los estados que adoptaron la ley tenian tendencias propias "
+        "distintas al resto).", S
     ))
     story.append(PageBreak())
 
@@ -820,6 +942,17 @@ def build(output="Explicacion_pesos.pdf"):
         ],
         anchos=[3.5*cm, 4.4*cm, 4.4*cm, 4.2*cm]
     ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> caracteristicas a comparar entre metodos. "
+        "<b>Columnas:</b> los tres metodos (SDID, SC, DiD). "
+        "La primera columna (azul) actua como etiqueta de la caracteristica. "
+        "Esta tabla resume las diferencias estructurales en la forma en que cada metodo trata el tiempo: "
+        "el SDID es selectivo (concentra el peso en 1-3 años recientes), el SC lo ignora completamente "
+        "(lambda = 0), y el DiD lo trata todo como igualmente importante (uniforme 1/T0). "
+        "La fila 'Supuesto' es la mas critica: revela que el DiD requiere una hipotesis muy fuerte "
+        "sobre la informacion temporal que los otros metodos no necesitan.", S
+    ))
     story.append(esp(0.3))
 
     # 5.2 omega
@@ -836,6 +969,18 @@ def build(output="Explicacion_pesos.pdf"):
              "Alto\n(overfitting al pre-periodo)", "Sesgo por controles\nno representativos"),
         ],
         anchos=[3.5*cm, 4.4*cm, 4.4*cm, 4.2*cm]
+    ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> caracteristicas a comparar. "
+        "<b>Columnas:</b> los tres metodos. "
+        "Esta tabla es el complemento de la anterior pero para los pesos de unidades. "
+        "El contraste mas llamativo es el numero de estados activos: el SDID usa 22-35 de 38, "
+        "el SC solo 3-8, y el DiD los 38 sin excepcion. "
+        "La fila 'Peso maximo tipico' explica por que el SC tiene mayor riesgo de overfitting: "
+        "concentrar 0.31-0.92 del peso en uno o dos estados hace que el contrafactual sea "
+        "muy sensible a esos estados especificos. "
+        "La fila 'Riesgo' sintetiza la consecuencia practica de cada eleccion metodologica.", S
     ))
     story.append(esp(0.3))
 
@@ -854,6 +999,20 @@ def build(output="Explicacion_pesos.pdf"):
             ["DiD",  "-19.48 paquetes", "-5.63 paquetes",    "Controles no optimos (omega uniforme)"],
         ],
         anchos=[2.2*cm, 3.8*cm, 3.8*cm, 6.7*cm], col_verde=0
+    ))
+    story.append(esp(0.1))
+    story.append(explicacion(
+        "<b>Filas:</b> los tres metodos de estimacion. "
+        "<b>Columna ATT estimado:</b> el efecto causal estimado del tratamiento en paquetes de cigarrillos "
+        "per capita (negativo = reduccion). "
+        "<b>Columna 'Diferencia vs SDID':</b> cuanto se aleja cada metodo del SDID, que es la referencia "
+        "metodologicamente mas solida. "
+        "<b>Columna 'Por que difiere':</b> causa estructural de la diferencia. "
+        "La fila resaltada en verde (SDID) es la referencia. "
+        "El SC se acerca al SDID (+0.48) porque ambos optimizan los pesos de unidades, pero el SC "
+        "pierde precision al ignorar la informacion temporal. "
+        "El DiD sobreestima el efecto en magnitud (-5.63 mas) porque usa controles no representativos "
+        "que tenian tendencias crecientes, lo que infla artificialmente el contrafactual pre-tratamiento.", S
     ))
     story.append(esp(0.2))
     story.append(caja(
