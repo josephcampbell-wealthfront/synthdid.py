@@ -15,7 +15,7 @@ setup(
         "scipy>=1.10.1",
         "matplotlib>=3.7.1",
         "statsmodels>=0.13.5",
-    ]
+    ],
     name="synthdid",
     author="D2CML Team, Alexander Quispe, Rodrigo  Grijalba, Jhon Flores, Franco Caceres",
     version="0.10.1",
